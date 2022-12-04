@@ -3,12 +3,24 @@ const { StatusCodes } = require('http-status-codes');
 const { BadRequestError, NotFoundError } = require('../errors');
 const mongoose = require('mongoose');
 const moment = require('moment');
+const jwt = require('jsonwebtoken');
 
+
+const getuserID=(header)=>{
+  // const authHeader = header['authorization'];
+  console.log(header,'header')
+  const token = header.split(' ')[1];
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
+    return payload.userId
+
+  
+}
 const getAllJobs = async (req, res) => {
   const { search, status, jobType, sort } = req.query;
 
   const queryObject = {
-    createdBy: req.user.userId,
+    // createdBy: req.user.userId,
+    createdBy:getuserID(req.headers['authorization'])
   };
 
   if (search) {
@@ -65,7 +77,7 @@ const getJob = async (req, res) => {
 };
 
 const createJob = async (req, res) => {
-  req.body.createdBy = req.user.userId;
+  req.body.createdBy = getuserID(req.headers['authorization'])
   const job = await Job.create(req.body);
   res.status(StatusCodes.CREATED).json({ job });
 };
@@ -73,15 +85,17 @@ const createJob = async (req, res) => {
 const updateJob = async (req, res) => {
   const {
     body: { company, position },
-    user: { userId },
+    // user: { userId },
     params: { id: jobId },
   } = req;
+
+  console.log(req,'req checking inside edit')
 
   if (company === '' || position === '') {
     throw new BadRequestError('Company or Position fields cannot be empty');
   }
   const job = await Job.findByIdAndUpdate(
-    { _id: jobId, createdBy: userId },
+    { _id: jobId, createdBy: getuserID(req.headers['authorization'])},
     req.body,
     { new: true, runValidators: true }
   );
@@ -93,13 +107,13 @@ const updateJob = async (req, res) => {
 
 const deleteJob = async (req, res) => {
   const {
-    user: { userId },
+    // user: { userId },
     params: { id: jobId },
   } = req;
 
   const job = await Job.findByIdAndRemove({
     _id: jobId,
-    createdBy: userId,
+    createdBy: getuserID(req.headers['authorization']),
   });
   if (!job) {
     throw new NotFoundError(`No job with id ${jobId}`);
@@ -108,8 +122,10 @@ const deleteJob = async (req, res) => {
 };
 
 const showStats = async (req, res) => {
+  // console.log(getuserID(req.headers['authorization']),'user id')
+  var userId= getuserID(req.headers['authorization'])
   let stats = await Job.aggregate([
-    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
+    { $match: { createdBy: mongoose.Types.ObjectId(userId) } },
     { $group: { _id: '$status', count: { $sum: 1 } } },
   ]);
 
@@ -126,7 +142,7 @@ const showStats = async (req, res) => {
   };
 
   let monthlyApplications = await Job.aggregate([
-    { $match: { createdBy: mongoose.Types.ObjectId(req.user.userId) } },
+    { $match: { createdBy: mongoose.Types.ObjectId(userId) } },
     {
       $group: {
         _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },

@@ -1,5 +1,5 @@
 const express = require('express');
-const testUser = require('../middleware/testUser');
+// const testUser = require('../middleware/testUser');
 
 const router = express.Router();
 const {
@@ -11,13 +11,16 @@ const {
   showStats,
 } = require('../controllers/jobs');
 
-router.route('/').post(testUser, createJob).get(getAllJobs);
+router.route('/').post(createJob).get(getAllJobs);
+// router.route('/').post(testUser, createJob).get(getAllJobs);
 router.route('/stats').get(showStats);
 
 router
   .route('/:id')
   .get(getJob)
-  .delete(testUser, deleteJob)
-  .patch(testUser, updateJob);
+  .delete(deleteJob)
+  .patch(updateJob);
+  // .delete(testUser, deleteJob)
+  // .patch(testUser, updateJob);
 
 module.exports = router;
